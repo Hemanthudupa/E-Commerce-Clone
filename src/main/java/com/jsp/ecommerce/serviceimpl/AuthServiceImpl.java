@@ -2,6 +2,7 @@ package com.jsp.ecommerce.serviceimpl;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.jsp.ecommerce.entity.Customer;
@@ -28,6 +29,8 @@ public class AuthServiceImpl implements AuthServiceI {
 
 	private CustomerRepo customerRepo;
 
+	private PasswordEncoder passwordEncoder;
+
 	private ResponseStructure<UserResponseDTO> responseStructure;
 
 	@SuppressWarnings("unchecked")
@@ -43,7 +46,7 @@ public class AuthServiceImpl implements AuthServiceI {
 		}
 
 		user.setEmail(userRequestDTO.getEmail());
-		user.setPassword(userRequestDTO.getPassword());
+		user.setPassword(passwordEncoder.encode(userRequestDTO.getPassword()));
 		user.setUserRole(userRequestDTO.getUserRole());
 		user.setUserName(user.getEmail().split("@")[0]);
 		return (T) user;
@@ -65,7 +68,7 @@ public class AuthServiceImpl implements AuthServiceI {
 
 			}
 			return u;
-		}).orElseGet(saveUser(mapToUser(userRequestDTO)));
+		}).orElseGet(() -> saveUser(mapToUser(userRequestDTO)));
 
 		return new ResponseEntity<ResponseStructure<UserResponseDTO>>(responseStructure.setData(mapToResponse(user))
 				.setMessage("Please verify through OTP sent on your mail Id ").setStatus(HttpStatus.ACCEPTED.value()),
@@ -77,7 +80,7 @@ public class AuthServiceImpl implements AuthServiceI {
 		User user2 = null;
 		if (user instanceof Seller)
 			user2 = sellerRepo.save((Seller) user);
-		else
+		else if(user instanceof Customer)
 			user2 = customerRepo.save((Customer) user);
 
 		return (T) user2;
