@@ -4,6 +4,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -26,6 +27,10 @@ public class AuthExceptionHandlers {
 	@ExceptionHandler(UserEmailAlreadyVerifiedException.class)
 	public ResponseEntity<Object> userEmailAlreadyVerifiedException(UserEmailAlreadyVerifiedException ex) {
 		return exceptionStructure(ex.getMessage(), HttpStatus.BAD_REQUEST, ex.getLocalizedMessage());
+	}
+	@ExceptionHandler(UsernameNotFoundException.class)
+	public ResponseEntity<Object> usernameNotFoundException(UsernameNotFoundException ex) {
+		return exceptionStructure(ex.getMessage(), HttpStatus.BAD_REQUEST,"username or email not found in the DATA BASE!!!!");
 	}
 
 }
