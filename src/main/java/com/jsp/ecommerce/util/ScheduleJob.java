@@ -6,15 +6,18 @@ import org.springframework.stereotype.Component;
 
 import com.jsp.ecommerce.repository.UserRepo;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Component
+@Slf4j
 public class ScheduleJob {
 
 	@Autowired
 	private UserRepo userRepo;
 
-//	@Scheduled(fixedDelay = 2000L)
-//	public void deleteUsers() {
-//		userRepo.findByIsEmailVerified(false).forEach(user -> user.setDeleted(true));
-//	}
-
+	@Scheduled(fixedDelay = 20000L)
+	public void deleteUsers() {
+//		log.info("hello ");
+		userRepo.findByIsEmailVerified(false).forEach(user -> userRepo.delete(user));
+	}
 }
