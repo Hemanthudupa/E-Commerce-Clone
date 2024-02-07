@@ -1,9 +1,10 @@
 package com.jsp.ecommerce.entity;
 
 import jakarta.persistence.Entity;
-import lombok.Builder;
+import jakarta.persistence.Table;
 
 @Entity
+@Table(name = "sellers")
 public class Seller extends User {
 
 }

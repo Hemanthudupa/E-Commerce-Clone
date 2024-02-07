@@ -1,69 +1,85 @@
 package com.jsp.ecommerce.serviceimpl;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
 
 import com.jsp.ecommerce.entity.Customer;
 import com.jsp.ecommerce.entity.Seller;
 import com.jsp.ecommerce.entity.User;
-import com.jsp.ecommerce.repository.AuthRepo;
+import com.jsp.ecommerce.exceptions.UserEmailAlreadyVerifiedException;
 import com.jsp.ecommerce.repository.CustomerRepo;
 import com.jsp.ecommerce.repository.SellerRepo;
+import com.jsp.ecommerce.repository.UserRepo;
 import com.jsp.ecommerce.requestdto.UserRequestDTO;
+import com.jsp.ecommerce.responsedto.UserResponseDTO;
 import com.jsp.ecommerce.service.AuthServiceI;
+import com.jsp.ecommerce.util.ResponseStructure;
 
+import lombok.AllArgsConstructor;
+
+@AllArgsConstructor
+@Service
 public class AuthServiceImpl implements AuthServiceI {
 
-	@Autowired
-	private AuthRepo authRepo;
+	private UserRepo userRepo;
 
-	@Autowired
 	private SellerRepo sellerRepo;
 
-	@Autowired
 	private CustomerRepo customerRepo;
 
+	private ResponseStructure<UserResponseDTO> responseStructure;
+
 	@SuppressWarnings("unchecked")
-	public <T extends User> T mapToUser(UserRequestDTO userRequestDTO) {
+	private <T extends User> T mapToUser(UserRequestDTO userRequestDTO) {
+		User user = null;
 		switch (userRequestDTO.getUserRole()) {
-		case SELLER: {
-
-			Seller seller = new Seller();
-			seller.setEmail(userRequestDTO.getEmail());
-			seller.setPassword(userRequestDTO.getPassword());
-			seller.setUserRole(userRequestDTO.getUserRole());
-			return (T) seller;
+		case SELLER -> {
+			user = new Seller();
 		}
-		case CUSTOMER: {
-
-			Customer customer = new Customer();
-			customer.setEmail(userRequestDTO.getEmail());
-			customer.setPassword(userRequestDTO.getPassword());
-			customer.setUserRole(userRequestDTO.getUserRole());
-			return (T) customer;
+		case CUSTOMER -> {
+			user = new Customer();
 		}
-		default:
-			return null;
-
 		}
+
+		user.setEmail(userRequestDTO.getEmail());
+		user.setPassword(userRequestDTO.getPassword());
+		user.setUserRole(userRequestDTO.getUserRole());
+		user.setUserName(user.getEmail().split("@")[0]);
+		return (T) user;
+	}
+
+	public UserResponseDTO mapToResponse(User user) {
+		return UserResponseDTO.builder().email(user.getEmail()).userId(user.getUserId()).isDeleted(user.isDeleted())
+				.isEmailVerified(user.isEmailVerified()).userName(user.getUserName()).userRole(user.getUserRole())
+				.build();
 	}
 
 	@Override
-	public void addUser(UserRequestDTO userRequestDTO) {
+	public ResponseEntity<ResponseStructure<UserResponseDTO>> register(UserRequestDTO userRequestDTO) {
 
-		if (authRepo.existsByEmail(userRequestDTO.getEmail())) {
-			User user = mapToUser(userRequestDTO);
-			user.setUserName(user.getEmail().split("@")[0]);
+		User user = userRepo.findByUserName(userRequestDTO.getEmail().split("@")[0]).map(u -> {
+			if (u.isEmailVerified())
+				throw new UserEmailAlreadyVerifiedException(" email is  already verified !!!");
+			else {
 
-			authRepo.save(user);
-			if (user instanceof Seller) {
-				Seller seller = (Seller) user;
-				sellerRepo.save(seller);
-			} else {
-				Customer customer = (Customer) user;
-				customerRepo.save(customer);
 			}
+			return u;
+		}).orElseGet(saveUser(mapToUser(userRequestDTO)));
 
-		}
+		return new ResponseEntity<ResponseStructure<UserResponseDTO>>(responseStructure.setData(mapToResponse(user))
+				.setMessage("Please verify through OTP sent on your mail Id ").setStatus(HttpStatus.ACCEPTED.value()),
+				HttpStatus.ACCEPTED);
 	}
 
+	@SuppressWarnings("unchecked")
+	public <T extends User> T saveUser(User user) {
+		User user2 = null;
+		if (user instanceof Seller)
+			user2 = sellerRepo.save((Seller) user);
+		else
+			user2 = customerRepo.save((Customer) user);
+
+		return (T) user2;
+	}
 }
