@@ -33,11 +33,10 @@ public class SecurityConfig {
 		return provider;
 	}
 
-	@SuppressWarnings("deprecation")
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		return http.csrf(csrf -> csrf.disable())
-				.authorizeRequests(auth -> auth.requestMatchers("/**").permitAll().anyRequest().authenticated())
+				.authorizeHttpRequests(auth -> auth.requestMatchers("/**").permitAll().anyRequest().authenticated())
 				.formLogin(Customizer.withDefaults()).build();
 	}
 

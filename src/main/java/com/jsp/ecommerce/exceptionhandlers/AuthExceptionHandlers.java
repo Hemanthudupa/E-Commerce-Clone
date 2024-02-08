@@ -9,7 +9,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.jsp.ecommerce.exceptions.DuplicateEmailException;
+import com.jsp.ecommerce.exceptions.InvalidEmailException;
+import com.jsp.ecommerce.exceptions.InvalidOTPException;
 import com.jsp.ecommerce.exceptions.UserEmailAlreadyVerifiedException;
+import com.jsp.ecommerce.exceptions.UserSessionExpiredException;
+import com.jsp.ecommerce.exceptions.WrongOTPException;
 
 @RestControllerAdvice
 public class AuthExceptionHandlers {
@@ -32,5 +36,22 @@ public class AuthExceptionHandlers {
 	public ResponseEntity<Object> usernameNotFoundException(UsernameNotFoundException ex) {
 		return exceptionStructure(ex.getMessage(), HttpStatus.BAD_REQUEST,"username or email not found in the DATA BASE!!!!");
 	}
-
+	@ExceptionHandler(InvalidEmailException.class)
+	public ResponseEntity<Object> invalidEmailException(InvalidEmailException ex) {
+		return exceptionStructure(ex.getMessage(), HttpStatus.BAD_REQUEST," email cannot be empty , please give valid email !!!!");
+	}
+	@ExceptionHandler(InvalidOTPException.class)
+	public ResponseEntity<Object> invalidOTPException(InvalidOTPException ex) {
+		return exceptionStructure(ex.getMessage(), HttpStatus.BAD_REQUEST,"OTP cannot be null  , provide an valid OTP!!!!");
+	}
+	@ExceptionHandler(WrongOTPException.class)
+	public ResponseEntity<Object> wrongOTPException(WrongOTPException ex) {
+		return exceptionStructure(ex.getMessage(), HttpStatus.BAD_REQUEST,"invalid otp , you have mentioned wrong OTP !!!!");
+	}
+	
+	
+	@ExceptionHandler(UserSessionExpiredException.class)
+	public ResponseEntity<Object> userSessionExpiredException(UserSessionExpiredException ex) {
+		return exceptionStructure(ex.getMessage(), HttpStatus.BAD_REQUEST,"user expired , please regester user again  !!!!");
+	}
 }

@@ -15,9 +15,9 @@ public class ScheduleJob {
 	@Autowired
 	private UserRepo userRepo;
 
-	@Scheduled(fixedDelay = 20000L)
-	public void deleteUsers() {
-//		log.info("hello ");
-		userRepo.findByIsEmailVerified(false).forEach(user -> userRepo.delete(user));
-	}
+//	@Scheduled(fixedDelay = 20000L)
+//	public void deleteUsers() {
+////		log.info("hello ");
+//		userRepo.findByIsEmailVerified(false).forEach(user -> userRepo.delete(user));
+//	}
 }
