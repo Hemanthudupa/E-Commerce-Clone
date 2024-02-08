@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.jsp.ecommerce.requestdto.OTPModel;
 import com.jsp.ecommerce.requestdto.UserRequestDTO;
 import com.jsp.ecommerce.responsedto.UserResponseDTO;
 import com.jsp.ecommerce.service.AuthServiceI;
@@ -15,10 +16,16 @@ import com.jsp.ecommerce.util.ResponseStructure;
 @RestController
 public class AuthController {
 	@Autowired
-	private AuthServiceI userServiceI;
+	private AuthServiceI authServiceI;
 
 	@PostMapping("/users")
 	public ResponseEntity<ResponseStructure<UserResponseDTO>> register(@RequestBody UserRequestDTO userRequestDTO) {
-		return userServiceI.register(userRequestDTO);
+		return authServiceI.register(userRequestDTO);
 	}
+
+	@PostMapping("/verify-otp")
+	public ResponseEntity<ResponseStructure<UserResponseDTO>> verifyOTP(@RequestBody OTPModel otpModel) {
+		return authServiceI.verifyOTP(otpModel);
+	}
+
 }
