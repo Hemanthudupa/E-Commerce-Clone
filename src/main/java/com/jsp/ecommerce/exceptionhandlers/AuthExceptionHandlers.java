@@ -54,4 +54,5 @@ public class AuthExceptionHandlers {
 	public ResponseEntity<Object> userSessionExpiredException(UserSessionExpiredException ex) {
 		return exceptionStructure(ex.getMessage(), HttpStatus.BAD_REQUEST,"user expired , please regester user again  !!!!");
 	}
+	
 }
