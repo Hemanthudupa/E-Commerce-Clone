@@ -1,40 +1,55 @@
 package com.jsp.ecommerce.serviceimpl;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.Random;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import com.jsp.ecommerce.cache.CacheStore;
+import com.jsp.ecommerce.entity.AccessToken;
 import com.jsp.ecommerce.entity.Customer;
+import com.jsp.ecommerce.entity.RefreshToken;
 import com.jsp.ecommerce.entity.Seller;
 import com.jsp.ecommerce.entity.User;
 import com.jsp.ecommerce.exceptions.DuplicateEmailException;
 import com.jsp.ecommerce.exceptions.InvalidOTPException;
 import com.jsp.ecommerce.exceptions.UserSessionExpiredException;
 import com.jsp.ecommerce.exceptions.WrongOTPException;
+import com.jsp.ecommerce.repository.AccessTokenRepo;
 import com.jsp.ecommerce.repository.CustomerRepo;
+import com.jsp.ecommerce.repository.RefreshTokenRepo;
 import com.jsp.ecommerce.repository.SellerRepo;
 import com.jsp.ecommerce.repository.UserRepo;
+import com.jsp.ecommerce.requestdto.AuthRequestDTO;
 import com.jsp.ecommerce.requestdto.OTPModel;
 import com.jsp.ecommerce.requestdto.UserRequestDTO;
+import com.jsp.ecommerce.responsedto.AuthResponseDTO;
 import com.jsp.ecommerce.responsedto.UserResponseDTO;
+import com.jsp.ecommerce.security.JWTService;
 import com.jsp.ecommerce.service.AuthServiceI;
+import com.jsp.ecommerce.util.CookieManager;
 import com.jsp.ecommerce.util.MessageStructure;
 import com.jsp.ecommerce.util.ResponseStructure;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
-import lombok.AllArgsConstructor;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
-@AllArgsConstructor
 @Slf4j
 @Service
 public class AuthServiceImpl implements AuthServiceI {
@@ -53,7 +68,47 @@ public class AuthServiceImpl implements AuthServiceI {
 
 	private CacheStore<User> userCacheStore;
 
+	private AuthenticationManager authenticationManager;
+
 	private JavaMailSender javaMailSender;// bean provided by spring it will comes with the dependency only
+
+	private CookieManager cookieManager;
+
+	@Value("${myapp.access.expiry}")
+	private int accessExpirationInSeconds;
+
+	@Value("${myapp.refresh.expiry}")
+	private int refreshExpirationInSeconds;
+
+	private JWTService jwtService;
+
+	private AccessTokenRepo accessTokenRepo;
+	private RefreshTokenRepo refreshTokenRepo;
+
+	private ResponseStructure<AuthResponseDTO> authResponseStructure;
+
+	public AuthServiceImpl(UserRepo userRepo, SellerRepo sellerRepo, CustomerRepo customerRepo,
+			PasswordEncoder passwordEncoder, ResponseStructure<UserResponseDTO> responseStructure,
+			CacheStore<String> otpCacheStore, CacheStore<User> userCacheStore,
+			AuthenticationManager authenticationManager, JavaMailSender javaMailSender, CookieManager cookieManager,
+			JWTService jwtService, AccessTokenRepo accessTokenRepo, RefreshTokenRepo refreshTokenRepo,
+			ResponseStructure<AuthResponseDTO> authResponseStructure) {
+		super();
+		this.userRepo = userRepo;
+		this.sellerRepo = sellerRepo;
+		this.customerRepo = customerRepo;
+		this.passwordEncoder = passwordEncoder;
+		this.responseStructure = responseStructure;
+		this.otpCacheStore = otpCacheStore;
+		this.userCacheStore = userCacheStore;
+		this.authenticationManager = authenticationManager;
+		this.javaMailSender = javaMailSender;
+		this.cookieManager = cookieManager;
+		this.jwtService = jwtService;
+		this.accessTokenRepo = accessTokenRepo;
+		this.refreshTokenRepo = refreshTokenRepo;
+		this.authResponseStructure = authResponseStructure;
+	}
 
 	public UserResponseDTO mapToResponse(User user) {
 		return UserResponseDTO.builder().email(user.getEmail()).userId(user.getUserId()).isDeleted(user.isDeleted())
@@ -109,18 +164,48 @@ public class AuthServiceImpl implements AuthServiceI {
 		if (!OTP.equals(otpModel.getOtp()))
 			throw new WrongOTPException("wrong otp ");
 		else {
+			user.setEmailVerified(true);
 			responseStructure.setData(mapToResponse(userRepo.save(user)));
 			responseStructure.setMessage(" user successfully added ");
 			responseStructure.setStatus(HttpStatus.OK.value());
 			try {
 				sendResponseMessage(user);
 			} catch (MessagingException e) {
-				log.error(" confirmation  mail  sent successfully   ");
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
-
 		}
 
 		return new ResponseEntity<ResponseStructure<UserResponseDTO>>(responseStructure, HttpStatus.OK);
+	}
+
+	@Override
+	public ResponseEntity<ResponseStructure<AuthResponseDTO>> login(@RequestBody AuthRequestDTO authRequestDTO,
+			HttpServletResponse httpServletResponse) {
+		String userName = authRequestDTO.getEmail().split("@")[0];
+
+		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(userName,
+				authRequestDTO.getPassword());
+
+		Authentication authenticate = authenticationManager.authenticate(token);
+
+		if (!authenticate.isAuthenticated()) {
+			throw new UsernameNotFoundException("failed to authenticate the user ");
+		} else {
+			// generating the cookies and authResponse anf returing to the client
+
+			return userRepo.findByUserName(userName).map(user -> {
+				grantAccess(httpServletResponse, user);
+				return ResponseEntity.ok(authResponseStructure.setStatus(HttpStatus.OK.value())
+						.setData(AuthResponseDTO.builder().userId(user.getUserId()).userName(user.getUserName())
+								.userRole(user.getUserRole().name())
+								.accessExpiration(LocalDateTime.now().plusSeconds(accessExpirationInSeconds))
+								.refreshExpiration(LocalDateTime.now().plusSeconds(refreshExpirationInSeconds)).build())
+						.setMessage(null));
+
+			}).get();
+		}
+
 	}
 
 	@SuppressWarnings("unchecked")
@@ -175,9 +260,34 @@ public class AuthServiceImpl implements AuthServiceI {
 	private void sendResponseMessage(User user) throws MessagingException {
 		sendMail(MessageStructure.builder().subject("Regestration completed !!!").to(user.getEmail())
 				.sentDate(new Date())
-				.text("welcome to flipkart Application ... <br>  you have successfully logged in to the"
-						+ " <style color='red' > FlipKart <style/> Application  ")
+				.text("Dear, " + "<h2>" + user.getUserName() + "<h2>"
+						+ "<h3>Congratulations! 🎉..,Good To See You Intrested in Our E-Commerce Api,<h3>"
+						+ "<h3>Sucessfully Completed Your Registration to E-Commerce Api<h3> <br>"
+						+ "<h3>Your email has been successfully verified, and you're now officially registered with E-Commerce Api.<h3>"
+						+ "<br>" + "<h3>Let's get started on your e-commerce journey! 🚀<h3>" + "<br>"
+						+ "<h3>With Best Regards<h3><br>" + "<h2>Heamanth Udupa<h2>" + "<h1>E-Commerce Api<h1>")
 				.build());
+	}
+
+	private void grantAccess(HttpServletResponse response, User user) {
+		// generating access and refresh tokens
+
+		String accesstoken = jwtService.generateAccessToken(user.getUserName());
+		String refreshToken = jwtService.generateRefreshToken(user.getUserName());
+//adding access and refresh tokens cookie to the repsonse 
+//		Cookie at = cookieManager.configure(new Cookie("accesstoken", accesstoken), accessExpirationInSeconds);
+		response.addCookie(cookieManager.configure(new Cookie("accesstoken", accesstoken), accessExpirationInSeconds));
+		response.addCookie(
+				cookieManager.configure(new Cookie("refreshToken", refreshToken), refreshExpirationInSeconds));
+
+		// saving the access and refresh cookie in to the database
+
+		accessTokenRepo.save(AccessToken.builder().token(accesstoken).isBlocked(false)
+				.expiration(LocalDateTime.now().plusSeconds(accessExpirationInSeconds)).build());
+
+		refreshTokenRepo.save(RefreshToken.builder().token(refreshToken).isBlocked(false)
+				.expiration(LocalDateTime.now().plusSeconds(refreshExpirationInSeconds)).build());
+
 	}
 
 }
