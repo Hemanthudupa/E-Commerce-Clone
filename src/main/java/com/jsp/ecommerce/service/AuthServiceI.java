@@ -7,9 +7,11 @@ import com.jsp.ecommerce.requestdto.AuthRequestDTO;
 import com.jsp.ecommerce.requestdto.OTPModel;
 import com.jsp.ecommerce.requestdto.UserRequestDTO;
 import com.jsp.ecommerce.responsedto.AuthResponseDTO;
+import com.jsp.ecommerce.responsedto.SimpleResponseStructure;
 import com.jsp.ecommerce.responsedto.UserResponseDTO;
 import com.jsp.ecommerce.util.ResponseStructure;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 public interface AuthServiceI {
@@ -20,5 +22,11 @@ public interface AuthServiceI {
 
 	ResponseEntity<ResponseStructure<AuthResponseDTO>> login(@RequestBody AuthRequestDTO authRequestDTO,
 			HttpServletResponse httpServletResponse);
+
+	public ResponseEntity<SimpleResponseStructure> logoutTraditional(HttpServletRequest request,
+			HttpServletResponse response);
+
+	ResponseEntity<SimpleResponseStructure> logout(String accessToken, String refreshToken,
+			HttpServletResponse response);
 
 }

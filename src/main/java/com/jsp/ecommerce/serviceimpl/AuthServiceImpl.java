@@ -26,6 +26,7 @@ import com.jsp.ecommerce.entity.Seller;
 import com.jsp.ecommerce.entity.User;
 import com.jsp.ecommerce.exceptions.DuplicateEmailException;
 import com.jsp.ecommerce.exceptions.InvalidOTPException;
+import com.jsp.ecommerce.exceptions.UserNotLoggedInException;
 import com.jsp.ecommerce.exceptions.UserSessionExpiredException;
 import com.jsp.ecommerce.exceptions.WrongOTPException;
 import com.jsp.ecommerce.repository.AccessTokenRepo;
@@ -37,6 +38,7 @@ import com.jsp.ecommerce.requestdto.AuthRequestDTO;
 import com.jsp.ecommerce.requestdto.OTPModel;
 import com.jsp.ecommerce.requestdto.UserRequestDTO;
 import com.jsp.ecommerce.responsedto.AuthResponseDTO;
+import com.jsp.ecommerce.responsedto.SimpleResponseStructure;
 import com.jsp.ecommerce.responsedto.UserResponseDTO;
 import com.jsp.ecommerce.security.JWTService;
 import com.jsp.ecommerce.service.AuthServiceI;
@@ -47,6 +49,7 @@ import com.jsp.ecommerce.util.ResponseStructure;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
@@ -87,13 +90,14 @@ public class AuthServiceImpl implements AuthServiceI {
 
 	private ResponseStructure<AuthResponseDTO> authResponseStructure;
 
+	private SimpleResponseStructure simpleResponseStructure;
+
 	public AuthServiceImpl(UserRepo userRepo, SellerRepo sellerRepo, CustomerRepo customerRepo,
 			PasswordEncoder passwordEncoder, ResponseStructure<UserResponseDTO> responseStructure,
 			CacheStore<String> otpCacheStore, CacheStore<User> userCacheStore,
 			AuthenticationManager authenticationManager, JavaMailSender javaMailSender, CookieManager cookieManager,
 			JWTService jwtService, AccessTokenRepo accessTokenRepo, RefreshTokenRepo refreshTokenRepo,
-			ResponseStructure<AuthResponseDTO> authResponseStructure) {
-		super();
+			ResponseStructure<AuthResponseDTO> authResponseStructure, SimpleResponseStructure simpleResponseStructure) {
 		this.userRepo = userRepo;
 		this.sellerRepo = sellerRepo;
 		this.customerRepo = customerRepo;
@@ -108,6 +112,7 @@ public class AuthServiceImpl implements AuthServiceI {
 		this.accessTokenRepo = accessTokenRepo;
 		this.refreshTokenRepo = refreshTokenRepo;
 		this.authResponseStructure = authResponseStructure;
+		this.simpleResponseStructure = simpleResponseStructure;
 	}
 
 	public UserResponseDTO mapToResponse(User user) {
@@ -171,7 +176,6 @@ public class AuthServiceImpl implements AuthServiceI {
 			try {
 				sendResponseMessage(user);
 			} catch (MessagingException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -274,7 +278,7 @@ public class AuthServiceImpl implements AuthServiceI {
 
 		String accesstoken = jwtService.generateAccessToken(user.getUserName());
 		String refreshToken = jwtService.generateRefreshToken(user.getUserName());
-//adding access and refresh tokens cookie to the repsonse 
+//      adding access and refresh tokens cookie to the repsonse 
 //		Cookie at = cookieManager.configure(new Cookie("accesstoken", accesstoken), accessExpirationInSeconds);
 		response.addCookie(cookieManager.configure(new Cookie("accesstoken", accesstoken), accessExpirationInSeconds));
 		response.addCookie(
@@ -287,7 +291,62 @@ public class AuthServiceImpl implements AuthServiceI {
 
 		refreshTokenRepo.save(RefreshToken.builder().token(refreshToken).isBlocked(false)
 				.expiration(LocalDateTime.now().plusSeconds(refreshExpirationInSeconds)).build());
-
 	}
 
+	public ResponseEntity<SimpleResponseStructure> logoutTraditional(HttpServletRequest request,
+			HttpServletResponse response) {
+		String accessToken = "";
+		String refreshToken = "";
+		Cookie[] cookies = request.getCookies();
+		for (Cookie cookie : cookies) {
+			if (cookie.getName().equals("accesstoken")) {
+				accessToken = cookie.getValue();
+			} else {
+				refreshToken = cookie.getValue();
+			}
+			accessTokenRepo.findByToken(accessToken).ifPresent(at -> {
+				at.setBlocked(true);
+				accessTokenRepo.save(at);
+			});
+			refreshTokenRepo.findByToken(refreshToken).ifPresent(rt -> {
+				rt.setBlocked(true);
+				refreshTokenRepo.save(rt);
+			});
+
+			response.addCookie(cookieManager.invalidate(new Cookie(accessToken, "")));
+			response.addCookie(cookieManager.invalidate(new Cookie(refreshToken, "")));
+
+			simpleResponseStructure.setMessage("Logout successfully  ");
+			simpleResponseStructure.setStatus(HttpStatus.OK.value());
+
+		}
+		return new ResponseEntity<SimpleResponseStructure>(simpleResponseStructure, HttpStatus.OK);
+	}
+
+	@Override
+	public ResponseEntity<SimpleResponseStructure> logout(String accessToken, String refreshToken,
+			HttpServletResponse response) {
+
+		if (accessToken != null && refreshToken != null) {
+			accessTokenRepo.findByToken(accessToken).ifPresent(at -> {
+				System.out.println(at.getToken());
+				at.setBlocked(true);
+				accessTokenRepo.save(at);
+
+			});
+
+			refreshTokenRepo.findByToken(refreshToken).ifPresent(rt -> {
+				rt.setBlocked(true);
+				refreshTokenRepo.save(rt);
+			});
+			response.addCookie(cookieManager.invalidate(new Cookie(accessToken,"")));
+			response.addCookie(cookieManager.invalidate(new Cookie(refreshToken,"")));
+			simpleResponseStructure.setMessage("logout successfully ");
+			simpleResponseStructure.setStatus(HttpStatus.OK.value());
+
+		} else
+			throw new UserNotLoggedInException("user not logged in ");
+
+		return new ResponseEntity<SimpleResponseStructure>(simpleResponseStructure, HttpStatus.OK);
+	}
 }
