@@ -1,9 +1,13 @@
 package com.jsp.ecommerce.repository;
 
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.jsp.ecommerce.entity.RefreshToken;
 
-public interface RefreshTokenRepo extends JpaRepository<RefreshToken, Long>{
+public interface RefreshTokenRepo extends JpaRepository<RefreshToken, Long> {
+
+	Optional<RefreshToken> findByToken(String refreshToken);
 
 }
