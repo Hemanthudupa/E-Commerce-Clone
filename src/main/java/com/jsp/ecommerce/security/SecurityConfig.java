@@ -5,15 +5,18 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -21,6 +24,9 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 	@Autowired
 	private CustomUserDetailsService customUserDetailsService;
+
+	@Autowired
+	private JWTFilter jwtFilter;
 
 	@Bean
 	PasswordEncoder getBCryptPasswordEncoder() {
@@ -39,7 +45,9 @@ public class SecurityConfig {
 	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		return http.csrf(csrf -> csrf.disable())
 				.authorizeHttpRequests(auth -> auth.requestMatchers("/**").permitAll().anyRequest().authenticated())
-				.httpBasic(Customizer.withDefaults()).build();
+//				.httpBasic(Customizer.withDefaults()).build();
+				.sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))//after the response sends by the endpoint it removes the authenticated object from the SecurituContextFilter 
+				.authenticationProvider(authenticationProvider()).addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class).build();
 	}
 
 	@Bean
@@ -47,6 +55,7 @@ public class SecurityConfig {
 			throws Exception {
 		return authenticationConfiguration.getAuthenticationManager();
 	}
-	//AuthenticationConfiguration it is a helper class to get the objct of AuthenticationManager
+	// AuthenticationConfiguration it is a helper class to get the objct of
+	// AuthenticationManager
 
 }
