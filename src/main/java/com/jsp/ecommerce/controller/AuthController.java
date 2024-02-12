@@ -55,4 +55,17 @@ public class AuthController {
 			@CookieValue(name = "refreshToken", required = false) String refreshToken, HttpServletResponse response) {
 		return authServiceI.logout(accessToken, refreshToken, response);
 	}
+
+	@PostMapping("/revoke")
+	public ResponseEntity<SimpleResponseStructure> revokeAllDevice() {
+		return authServiceI.revokeAllDevice();
+	}
+
+	@PostMapping("/revoke-all")
+	public ResponseEntity<SimpleResponseStructure> revokeOtherDevice(HttpServletResponse httpServletResponse,
+			@CookieValue(name = "accesstoken", required = true) String accessToken,
+			@CookieValue(name = "refreshToken", required = true) String refreshToken) {
+		return authServiceI.revokeOtherDevice(httpServletResponse, accessToken, refreshToken);
+	}
+
 }

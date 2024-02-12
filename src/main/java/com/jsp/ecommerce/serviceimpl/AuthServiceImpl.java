@@ -2,6 +2,7 @@ package com.jsp.ecommerce.serviceimpl;
 
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.List;
 import java.util.Random;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +14,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -258,7 +260,6 @@ public class AuthServiceImpl implements AuthServiceI {
 						+ " Note: the OTP expires in 1 minutes " + "<br> <br>" + " with best regards <br>" + " FlipKart"
 
 				).build());
-
 	}
 
 	private void sendResponseMessage(User user) throws MessagingException {
@@ -339,14 +340,60 @@ public class AuthServiceImpl implements AuthServiceI {
 				rt.setBlocked(true);
 				refreshTokenRepo.save(rt);
 			});
-			response.addCookie(cookieManager.invalidate(new Cookie(accessToken,"")));
-			response.addCookie(cookieManager.invalidate(new Cookie(refreshToken,"")));
+			response.addCookie(cookieManager.invalidate(new Cookie("accessToken", "")));
+			response.addCookie(cookieManager.invalidate(new Cookie("refreshToken", "")));
 			simpleResponseStructure.setMessage("logout successfully ");
 			simpleResponseStructure.setStatus(HttpStatus.OK.value());
+			return new ResponseEntity<SimpleResponseStructure>(simpleResponseStructure, HttpStatus.OK);
 
 		} else
 			throw new UserNotLoggedInException("user not logged in ");
+	}
+
+	@Override
+	public ResponseEntity<SimpleResponseStructure> revokeAllDevice() {
+		String userName = SecurityContextHolder.getContext().getAuthentication().getName();
+
+		userRepo.findByUserName(userName).ifPresent(user -> {
+
+			blockAccessToken(accessTokenRepo.findAllByUserAndIsBlocked(user, false));
+			blockRefreshToken(refreshTokenRepo.findAllByUserAndIsBlocked(user, false));
+
+			simpleResponseStructure.setMessage(" Revoked the current user ");
+			simpleResponseStructure.setStatus(HttpStatus.OK.value());
+
+		});
 
 		return new ResponseEntity<SimpleResponseStructure>(simpleResponseStructure, HttpStatus.OK);
+	}
+
+	private void blockAccessToken(List<AccessToken> accessTokens) {
+		accessTokens.forEach(accessToken -> {
+			accessToken.setBlocked(true);
+			accessTokenRepo.save(accessToken);
+		});
+	}
+
+	private void blockRefreshToken(List<RefreshToken> refreshTokens) {
+		refreshTokens.forEach(refreshToken -> {
+			refreshToken.setBlocked(true);
+			refreshTokenRepo.save(refreshToken);
+		});
+	}
+
+	@Override
+	public ResponseEntity<SimpleResponseStructure> revokeOtherDevice(HttpServletResponse httpServletResponse,
+			String accessToken, String refreshToken) {
+
+		userRepo.findByUserName(SecurityContextHolder.getContext().getAuthentication().getName()).ifPresent(user -> {
+			blockAccessToken(accessTokenRepo.findAllByUserAndIsBlockedAndTokenNot(user, false, accessToken));
+
+			blockRefreshToken(refreshTokenRepo.findAllByUserAndIsBlockedAndTokenNot(user, false, accessToken));
+
+			simpleResponseStructure.setMessage("successfully revoked other devices ");
+			simpleResponseStructure.setStatus(HttpStatus.OK.value());
+		});
+
+		return new ResponseEntity<SimpleResponseStructure>(simpleResponseStructure,HttpStatus.OK);
 	}
 }
