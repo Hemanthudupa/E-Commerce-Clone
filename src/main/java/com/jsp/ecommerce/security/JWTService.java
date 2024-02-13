@@ -8,6 +8,8 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -34,12 +36,22 @@ public class JWTService {
 
 	private String generateJWT(Map<String, Object> claims, String userName, Long expiry) {
 		return Jwts.builder().setClaims(claims).setSubject(userName).setIssuedAt(new Date(System.currentTimeMillis()))
-				.setExpiration(new Date(System.currentTimeMillis() + expiry)).signWith(getSignature(), SignatureAlgorithm.HS512)
-				.compact();
+				.setExpiration(new Date(System.currentTimeMillis() + expiry))
+				.signWith(getSignature(), SignatureAlgorithm.HS512).compact();
 	}
 
+//this method returns the key object 
 	private Key getSignature() {
 		byte[] secreteBytes = Decoders.BASE64.decode(secreate);
 		return Keys.hmacShaKeyFor(secreteBytes);
+	}
+
+	private Claims jwtParser(String token) {
+		JwtParser jwtParser = Jwts.parserBuilder().setSigningKey(getSignature()).build();
+		return jwtParser.parseClaimsJws(token).getBody(); // it will returns the claims which is consist in the body
+	}
+
+	public String extractUserName(String token) {
+		return jwtParser(token).getSubject(); // it will returns the username
 	}
 }

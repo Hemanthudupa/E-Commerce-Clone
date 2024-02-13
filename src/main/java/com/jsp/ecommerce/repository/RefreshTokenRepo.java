@@ -1,5 +1,6 @@
 package com.jsp.ecommerce.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,5 +16,6 @@ public interface RefreshTokenRepo extends JpaRepository<RefreshToken, Long> {
 	List<RefreshToken> findAllByUserAndIsBlockedAndTokenNot(User user, boolean b, String accessToken);
 
 	List<RefreshToken> findAllByUserAndIsBlocked(User user, boolean b);
+	List<RefreshToken> findByExpirationBefore(LocalDateTime now);
 
 }

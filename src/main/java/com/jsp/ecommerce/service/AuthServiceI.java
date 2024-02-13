@@ -21,7 +21,7 @@ public interface AuthServiceI {
 	ResponseEntity<ResponseStructure<UserResponseDTO>> verifyOTP(OTPModel otp);
 
 	ResponseEntity<ResponseStructure<AuthResponseDTO>> login(@RequestBody AuthRequestDTO authRequestDTO,
-			HttpServletResponse httpServletResponse);
+			HttpServletResponse httpServletResponse,String accessToken, String refreshToken);
 
 	public ResponseEntity<SimpleResponseStructure> logoutTraditional(HttpServletRequest request,
 			HttpServletResponse response);
@@ -33,5 +33,7 @@ public interface AuthServiceI {
 
 	ResponseEntity<SimpleResponseStructure> revokeOtherDevice(HttpServletResponse httpServletResponse,
 			String accessToken, String refreshToken);
+
+	ResponseEntity<SimpleResponseStructure> refreshToken(String accessToken, String refreshToken,HttpServletResponse httpServletResponse);
 
 }

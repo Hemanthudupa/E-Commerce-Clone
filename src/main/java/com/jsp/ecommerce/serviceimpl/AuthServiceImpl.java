@@ -28,6 +28,8 @@ import com.jsp.ecommerce.entity.Seller;
 import com.jsp.ecommerce.entity.User;
 import com.jsp.ecommerce.exceptions.DuplicateEmailException;
 import com.jsp.ecommerce.exceptions.InvalidOTPException;
+import com.jsp.ecommerce.exceptions.RefreshTokenExpiredException;
+import com.jsp.ecommerce.exceptions.UserAlreadyLoggedInException;
 import com.jsp.ecommerce.exceptions.UserNotLoggedInException;
 import com.jsp.ecommerce.exceptions.UserSessionExpiredException;
 import com.jsp.ecommerce.exceptions.WrongOTPException;
@@ -187,7 +189,12 @@ public class AuthServiceImpl implements AuthServiceI {
 
 	@Override
 	public ResponseEntity<ResponseStructure<AuthResponseDTO>> login(@RequestBody AuthRequestDTO authRequestDTO,
-			HttpServletResponse httpServletResponse) {
+			HttpServletResponse httpServletResponse,String accessToken, String refreshToken) {
+		
+		if(accessToken!=null|| refreshToken!=null)
+		{
+			throw new UserAlreadyLoggedInException(" user already logged in ");
+		}
 		String userName = authRequestDTO.getEmail().split("@")[0];
 
 		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(userName,
@@ -288,10 +295,10 @@ public class AuthServiceImpl implements AuthServiceI {
 		// saving the access and refresh cookie in to the database
 
 		accessTokenRepo.save(AccessToken.builder().token(accesstoken).isBlocked(false)
-				.expiration(LocalDateTime.now().plusSeconds(accessExpirationInSeconds)).build());
+				.expiration(LocalDateTime.now().plusSeconds(accessExpirationInSeconds)).user(user).build());
 
 		refreshTokenRepo.save(RefreshToken.builder().token(refreshToken).isBlocked(false)
-				.expiration(LocalDateTime.now().plusSeconds(refreshExpirationInSeconds)).build());
+				.expiration(LocalDateTime.now().plusSeconds(refreshExpirationInSeconds)).user(user).build());
 	}
 
 	public ResponseEntity<SimpleResponseStructure> logoutTraditional(HttpServletRequest request,
@@ -340,7 +347,7 @@ public class AuthServiceImpl implements AuthServiceI {
 				rt.setBlocked(true);
 				refreshTokenRepo.save(rt);
 			});
-			response.addCookie(cookieManager.invalidate(new Cookie("accessToken", "")));
+			response.addCookie(cookieManager.invalidate(new Cookie("accesstoken", "")));
 			response.addCookie(cookieManager.invalidate(new Cookie("refreshToken", "")));
 			simpleResponseStructure.setMessage("logout successfully ");
 			simpleResponseStructure.setStatus(HttpStatus.OK.value());
@@ -394,6 +401,38 @@ public class AuthServiceImpl implements AuthServiceI {
 			simpleResponseStructure.setStatus(HttpStatus.OK.value());
 		});
 
-		return new ResponseEntity<SimpleResponseStructure>(simpleResponseStructure,HttpStatus.OK);
+		return new ResponseEntity<SimpleResponseStructure>(simpleResponseStructure, HttpStatus.OK);
+	}
+
+	@Override
+	public ResponseEntity<SimpleResponseStructure> refreshToken(String accessToken, String refreshToken,
+			HttpServletResponse response) {
+
+		if (refreshToken == null)
+			throw new RefreshTokenExpiredException("refresh token is expired ");
+		String userName = SecurityContextHolder.getContext().getAuthentication().getName();
+
+		if (refreshToken != null) {
+			refreshTokenRepo.findByToken(refreshToken).ifPresent(rt -> {
+				rt.setBlocked(true);
+				refreshTokenRepo.save(rt);
+			});
+		}
+
+		if (accessToken != null) {
+			accessTokenRepo.findByToken(accessToken).ifPresent(token -> {
+				token.setBlocked(true);
+				accessTokenRepo.save(token);
+			});
+		}
+
+		return userRepo.findByUserName(userName).map(user -> {
+			grantAccess(response, user);
+			simpleResponseStructure.setMessage(" refreshed the token cycle ");
+			simpleResponseStructure.setStatus(HttpStatus.OK.value());
+
+			return new ResponseEntity<SimpleResponseStructure>(simpleResponseStructure, HttpStatus.OK);
+		}).orElseThrow(() -> new UserNotLoggedInException("  user not  logged In "));
+
 	}
 }
