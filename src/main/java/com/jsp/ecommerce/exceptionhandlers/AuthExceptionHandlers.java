@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.jsp.ecommerce.exceptions.DuplicateEmailException;
 import com.jsp.ecommerce.exceptions.InvalidEmailException;
 import com.jsp.ecommerce.exceptions.InvalidOTPException;
+import com.jsp.ecommerce.exceptions.RefreshTokenExpiredException;
+import com.jsp.ecommerce.exceptions.UserAlreadyLoggedInException;
 import com.jsp.ecommerce.exceptions.UserEmailAlreadyVerifiedException;
 import com.jsp.ecommerce.exceptions.UserNotLoggedInException;
 import com.jsp.ecommerce.exceptions.UserSessionExpiredException;
@@ -69,5 +71,17 @@ public class AuthExceptionHandlers {
 		return exceptionStructure(ex.getMessage(), HttpStatus.BAD_REQUEST,
 				"user not logged in to logout  , please login if you want to logout   !!!!");
 	}
-
+	
+	@ExceptionHandler(UserAlreadyLoggedInException.class)
+	public ResponseEntity<Object> userAlreadyLoggedInException(UserAlreadyLoggedInException ex) {
+		return exceptionStructure(ex.getMessage(), HttpStatus.BAD_REQUEST,
+				"user already logged in dont hit the endpoint again    !!!!");
+	}
+	
+	
+	@ExceptionHandler(RefreshTokenExpiredException.class)
+	public ResponseEntity<Object> refreshTokenExpiredException(RefreshTokenExpiredException ex) {
+		return exceptionStructure(ex.getMessage(), HttpStatus.BAD_REQUEST,
+				"refresh token expired please login again  !!!!");
+	}
 }

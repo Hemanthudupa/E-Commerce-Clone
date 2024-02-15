@@ -48,11 +48,11 @@ public class JWTService {
 
 	private Claims jwtParser(String token) {
 		JwtParser jwtParser = Jwts.parserBuilder().setSigningKey(getSignature()).build();
-		return jwtParser.parseClaimsJwt(token).getBody();                                                                             // it will returns the claims which is consist in the body
+		return jwtParser.parseClaimsJws(token).getBody(); // it will returns the claims which is consist in the body
+	}
+
+	public String extractUserName(String token) {
+		return jwtParser(token).getSubject(); // it will returns the username
 	}
 	
-	public String extractUserName(String token)
-	{
-		return jwtParser(token).getSubject();                                                                                                  //it will returns the username
-	}
 }

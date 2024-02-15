@@ -2,6 +2,7 @@ package com.jsp.ecommerce.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -39,8 +40,10 @@ public class AuthController {
 
 	@PostMapping("/login")
 	public ResponseEntity<ResponseStructure<AuthResponseDTO>> login(@RequestBody AuthRequestDTO authRequestDTO,
-			HttpServletResponse httpServletResponse) {
-		return authServiceI.login(authRequestDTO, httpServletResponse);
+			HttpServletResponse httpServletResponse,
+			@CookieValue(name = "accesstoken", required = false) String accessToken,
+			@CookieValue(name = "refreshToken", required = false) String refreshToken) {
+		return authServiceI.login(authRequestDTO, httpServletResponse, accessToken, refreshToken);
 	}
 
 	@PostMapping("/logout-traditional")
@@ -56,15 +59,24 @@ public class AuthController {
 		return authServiceI.logout(accessToken, refreshToken, response);
 	}
 
-	@PostMapping("/revoke")
+	@PostMapping("/revoke-all")
 	public ResponseEntity<SimpleResponseStructure> revokeAllDevice() {
 		return authServiceI.revokeAllDevice();
 	}
-@PostMapping("/revoke-all")
+
+	@PostMapping("/revoke-other")
 	public ResponseEntity<SimpleResponseStructure> revokeOtherDevice(HttpServletResponse httpServletResponse,
 			@CookieValue(name = "accesstoken", required = true) String accessToken,
 			@CookieValue(name = "refreshToken", required = true) String refreshToken) {
 		return authServiceI.revokeOtherDevice(httpServletResponse, accessToken, refreshToken);
+	}
+
+	@PostMapping("refresh-token")
+	public ResponseEntity<SimpleResponseStructure> refreshToken(HttpServletResponse response,
+			@CookieValue(name = "accesstoken", required = false) String acesstoken,
+			@CookieValue(name = "refreshToken", required = false) String refreshToken) {
+		System.out.println(SecurityContextHolder.getContext().getAuthentication().getName());
+		return authServiceI.refreshToken(acesstoken, refreshToken, response);
 	}
 
 }

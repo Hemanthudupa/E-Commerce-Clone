@@ -46,7 +46,7 @@ public class SecurityConfig {
 		return http.csrf(csrf -> csrf.disable())
 				.authorizeHttpRequests(auth -> auth.requestMatchers("/**").permitAll().anyRequest().authenticated())
 //				.httpBasic(Customizer.withDefaults()).build();
-				.sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))//after the response sends by the endpoint it removes the authenticated object from the SecurituContextFilter 
+				.sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))//after the response sends by the endpoint it removes the authenticated object from the SecurityContextFilter 
 				.authenticationProvider(authenticationProvider()).addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class).build();
 	}
 
