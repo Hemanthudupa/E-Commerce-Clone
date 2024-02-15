@@ -11,7 +11,7 @@ import com.jsp.ecommerce.entity.User;
 
 public interface AccessTokenRepo extends JpaRepository<AccessToken, Long> {
 
-	Optional<AccessToken> findByToken(String accessToken);
+Optional<AccessToken> findByToken(String accessToken);
 
 	List<AccessToken> findAllByUserAndIsBlockedAndTokenNot(User user, boolean b, String accessToken);
 
@@ -20,7 +20,6 @@ public interface AccessTokenRepo extends JpaRepository<AccessToken, Long> {
 	List<AccessToken> findByExpirationBefore(LocalDateTime expiry);
 
 	Optional<AccessToken> findByTokenAndIsBlocked(String at, boolean b);
-
 
 
 

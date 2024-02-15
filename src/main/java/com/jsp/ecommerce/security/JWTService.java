@@ -54,4 +54,5 @@ public class JWTService {
 	public String extractUserName(String token) {
 		return jwtParser(token).getSubject(); // it will returns the username
 	}
+	
 }

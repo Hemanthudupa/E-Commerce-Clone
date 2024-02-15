@@ -331,7 +331,7 @@ public class AuthServiceImpl implements AuthServiceI {
 		return new ResponseEntity<SimpleResponseStructure>(simpleResponseStructure, HttpStatus.OK);
 	}
 
-	@Override
+@Override
 	public ResponseEntity<SimpleResponseStructure> logout(String accessToken, String refreshToken,
 			HttpServletResponse response) {
 
@@ -404,7 +404,7 @@ public class AuthServiceImpl implements AuthServiceI {
 		return new ResponseEntity<SimpleResponseStructure>(simpleResponseStructure, HttpStatus.OK);
 	}
 
-	@Override
+@Override
 	public ResponseEntity<SimpleResponseStructure> refreshToken(String accessToken, String refreshToken,
 			HttpServletResponse response) {
 
